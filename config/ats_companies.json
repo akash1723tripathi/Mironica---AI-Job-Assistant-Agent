@@ -1,0 +1,15 @@
+{
+  "_comment": "greenhouse tokens verified via search (Razorpay, Postman). ashby tokens are real/working but are big global companies with mostly senior roles -- kept for pipeline testing, replace as you find better fresher-friendly matches. lever list left empty: 'shopify' 404'd in the first run, meaning that token was wrong -- add real ones as you find them (visit a company's careers page, check if the URL is jobs.lever.co/<token>).",
+
+  "greenhouse": [
+    "razorpaysoftwareprivatelimited",
+    "postman"
+  ],
+  "lever": [],
+  "ashby": [
+    "openai",
+    "ramp",
+    "linear",
+    "airwallex"
+  ]
+}
