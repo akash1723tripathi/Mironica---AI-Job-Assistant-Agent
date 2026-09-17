@@ -1,0 +1,78 @@
+
+{
+  "locations": [
+    "Noida, Uttar Pradesh, India",
+    "Greater Noida, Uttar Pradesh, India",
+    "Gurugram, Haryana, India",
+    "Bengaluru, Karnataka, India",
+    "Pune, Maharashtra, India",
+    "Lucknow, Uttar Pradesh, India",
+    "Remote"
+  ],
+  "roles": [
+    "Backend Engineer",
+    "Backend Developer",
+    "Software Engineer",
+    "Software Developer",
+    "Full Stack Engineer",
+    "Full Stack Developer",
+    "SDE",
+    "Backend Intern",
+    "Backend Developer Intern",
+    "Software Engineer Intern",
+    "Software Developer Intern",
+    "Full Stack Intern",
+    "Full Stack Developer Intern",
+    "Golang Backend Engineer"
+  ],
+  "allowed_seniority": [
+    "Entry level",
+    "Internship",
+    "Associate",
+    "Not Applicable"
+  ],
+  "blocked_keywords": [
+    "Senior",
+    "Lead",
+    "Staff",
+    "Principal",
+    "Architect",
+    "Manager",
+    "Director",
+    "Head",
+    "VP",
+    "AVP",
+    "SDE II",
+    "SDE III",
+    "Engineer II",
+    "Engineer III",
+    "Software Engineer 2",
+    "Software Engineer 3",
+    "Software Engineer 4",
+    "Java",
+    "Android",
+    "Flutter",
+    "iOS",
+    ".NET",
+    "Dotnet",
+    "WordPress",
+    "PHP",
+    "Cloud",
+    "DevOps",
+    "QA",
+    "Automation Tester",
+    "Freelance",
+    "Contractor",
+    "Graphic Designer",
+    "AI/ML"
+  ],
+  "priority": {
+    "Noida, Uttar Pradesh, India": 1,
+    "Greater Noida, Uttar Pradesh, India": 2,
+    "Gurugram, Haryana, India": 3,
+    "Remote": 4,
+    "Bengaluru, Karnataka, India": 5,
+    "Pune, Maharashtra, India": 6,
+    "Lucknow, Uttar Pradesh, India": 7
+  }
+}
