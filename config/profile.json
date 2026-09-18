@@ -1,0 +1,15 @@
+{
+  "name": "Akash",
+  "graduation": "2026-08",
+  "minimum_score": 50,
+  "target_roles": [
+    "backend engineer", "backend developer", "software engineer", "software developer",
+    "sde", "full stack engineer", "full stack developer", "golang engineer",
+    "associate software engineer", "assoc software engineer", "software development engineer",
+    "backend intern", "software engineer intern", "sde intern", "full stack intern"
+  ],
+  "preferred_locations": ["noida", "greater noida", "gurugram", "gurgaon", "india remote", "bengaluru", "bangalore", "pune", "lucknow"],
+  "core_skills": ["javascript", "typescript", "node", "express", "react", "next", "go", "golang"],
+  "supporting_skills": ["postgres", "postgresql", "mongodb", "mongo", "redis", "prisma", "sql", "rest api", "grpc", "socket.io", "jwt", "bcrypt", "jest"],
+  "tooling_skills": ["git", "github actions", "ci/cd", "docker", "kubernetes", "aws", "postman"]
+}
