@@ -1,0 +1,1 @@
+"""Canonical-job processing pipeline."""
