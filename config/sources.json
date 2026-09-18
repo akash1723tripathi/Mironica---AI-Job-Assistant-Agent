@@ -1,0 +1,15 @@
+{
+  "linkedin": {"enabled": true, "max_queries_per_run": 6, "max_jobs_per_query": 20, "max_enrichment": 20, "max_posts_per_query": 10, "max_post_queries_per_run": 3},
+  "yc": {"enabled": true, "url": "https://www.workatastartup.com/jobs"},
+  "ats_boards": [
+    {"platform": "greenhouse", "company": "Razorpay", "token": "razorpaysoftwareprivatelimited", "country": "India", "category": "startup", "enabled": true},
+    {"platform": "greenhouse", "company": "Postman", "token": "postman", "country": "India", "category": "startup", "enabled": false},
+    {"platform": "ashby", "company": "OpenAI", "token": "openai", "country": "Global", "category": "product", "enabled": false},
+    {"platform": "ashby", "company": "Ramp", "token": "ramp", "country": "Global", "category": "startup", "enabled": false},
+    {"platform": "ashby", "company": "Linear", "token": "linear", "country": "Global", "category": "startup", "enabled": false},
+    {"platform": "ashby", "company": "Airwallex", "token": "airwallex", "country": "Global", "category": "startup", "enabled": false}
+  ],
+  "workday": [],
+  "zoho_recruit": [],
+  "career_pages": []
+}
