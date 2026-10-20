@@ -105,7 +105,10 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                             continue
 
                         recruiter = card.locator("span[dir='ltr']").first.inner_text().strip() if card.locator("span[dir='ltr']").count() else ""
-                        
+
+                        # Keep the original post link separate from the apply link — Akash wants
+                        # the apply link when one exists, but still wants the post's own link
+                        # preserved (for email-only or post-only cases, and as context either way).
                         records.append(new_job(
                             "linkedin_posts",
                             source_id=post_url or apply or job_link,
@@ -114,7 +117,8 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                             email_source="linkedin_post" if email else "",
                             title=query.title(),
                             description=text[:1500],
-                            url=apply or job_link or post_url,
+                            url=apply or job_link,
+                            post_url=post_url,
                             apply_type="linkedin_post",
                             employment_type=""
                         ))

@@ -20,7 +20,9 @@ def format_job(job: dict) -> str:
     location = job.get("location", "India / Remote")
     score = job.get("score", 0)
     url = job.get("url", "")
+    post_url = job.get("post_url", "")
     email = job.get("recruiter_email", "")
+    contact_type = job.get("contact_type", "") or ("form" if url else "email_only" if email else "post_only")
 
     # Clean description for 2-line summary (~180 chars)
     desc = " ".join(str(job.get("description", "")).split())
@@ -31,12 +33,29 @@ def format_job(job: dict) -> str:
         f"🏢 {company}",
         f"📍 {location}",
         f"📝 {summary}",
-        f"🎯 Match: {score}%"
+        f"🎯 Match: {score}%",
     ]
-    if email:
-        lines.append(f"📧 Recruiter: {email}")
-    if url:
+
+    if contact_type == "form":
+        # Real apply link known — this is the main action.
         lines.append(f"🔗 Apply: {url}")
+        if post_url:
+            lines.append(f"📄 Original post: {post_url}")
+    elif contact_type == "email_only":
+        # No apply link, but a recruiter email was found — cold mail is the next step.
+        lines.append(f"📧 Cold mail needed: {email}")
+        if post_url:
+            lines.append(f"📄 Post: {post_url}")
+    elif contact_type == "post_only":
+        # Neither an apply link nor an email — just the post, Akash reviews it himself.
+        lines.append("⚠️ No form/email found — review the post")
+        lines.append(f"📄 Post: {post_url or url}")
+    else:
+        # Fallback for any job that somehow has none of the usual fields.
+        if email:
+            lines.append(f"📧 Recruiter: {email}")
+        if url or post_url:
+            lines.append(f"🔗 Link: {url or post_url}")
 
     return "\n".join(lines)
 

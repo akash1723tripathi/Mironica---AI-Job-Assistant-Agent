@@ -28,18 +28,43 @@ JAVA_PRIMARY_ROLE = re.compile(
     r"^\s*(java\s+(engineer|developer|architect|lead|programmer)|(engineer|developer|programmer)\s*[-:–]\s*java)\b",
     re.I
 )
+# Broad, explicit non-India country/region names and common abbreviations as seen in
+# "Remote - <Country>" style location strings. Word-boundaried so "US" doesn't match
+# inside unrelated words, but still catches bare "US"/"UK" tokens.
 FOREIGN_REMOTE = re.compile(
-    r"\b(usa|united states|canada|europe|european union|uk|united kingdom|singapore|australia|new zealand)\b",
+    r"\b("
+    r"usa|u\.s\.a\.?|us|u\.s\.?|united states|canada|"
+    r"europe|european union|eu|uk|u\.k\.?|united kingdom|great britain|"
+    r"ireland|germany|france|spain|portugal|italy|netherlands|belgium|"
+    r"poland|romania|ukraine|switzerland|sweden|norway|denmark|finland|austria|"
+    r"greece|hungary|czech republic|czechia|"
+    r"singapore|australia|new zealand|japan|china|hong kong|south korea|korea|"
+    r"philippines|indonesia|malaysia|thailand|vietnam|"
+    r"mexico|brazil|argentina|chile|colombia|"
+    r"south africa|nigeria|egypt|kenya|"
+    r"uae|united arab emirates|dubai|saudi arabia|qatar|israel"
+    r")\b",
     re.I
 )
 INDIA = re.compile(
-    r"\b(india|noida|greater noida|gurugram|gurgaon|bengaluru|bangalore|pune|lucknow|hyderabad|mumbai|delhi|chennai|kolkata)\b",
+    r"\b(india|noida|greater noida|gurugram|gurgaon|bengaluru|bangalore|pune|lucknow|hyderabad|mumbai|delhi|chennai|kolkata|kanpur)\b",
     re.I
 )
 PREFERRED_LOCATIONS = re.compile(
     r"\b(noida|greater noida|gurugram|gurgaon|bengaluru|bangalore|pune|lucknow)\b",
     re.I
 )
+# Short/ambiguous tech tokens ("go", "ts") need real word boundaries, or they match
+# substrings inside unrelated words ("going", "ongoing", "tests", "parts", "charts").
+# Bare "go" is still skipped even with \b, since "go-getter"/"go above" would match it —
+# only unambiguous Go-language phrasing counts.
+NODE_TS_GO = re.compile(
+    r"\b(node(\.js)?|node js|typescript|express(\.js)?|"
+    r"golang|goroutine|go\s*(lang|routine|module)|go\s+(developer|engineer|programming|microservice))\b",
+    re.I
+)
+REACT_NEXT = re.compile(r"\b(react(\.js)?|reactjs|next(\.js)?|nextjs)\b", re.I)
+DB_STACK = re.compile(r"\b(mongo(db)?|postgres(ql)?|sql|prisma|redis)\b", re.I)
 
 
 def hard_reject(job: dict) -> str:
@@ -61,7 +86,9 @@ def hard_reject(job: dict) -> str:
         return "primary java role"
 
     # 4. Foreign Remote Restriction Check
-    if "remote" in location.lower() and FOREIGN_REMOTE.search(location + " " + combined[:300]) and not INDIA.search(location + " " + combined[:300]):
+    # Only the location string decides this — a foreign city/company name mentioned in the
+    # description (e.g. "our Berlin office") must not falsely reject an India-based remote role.
+    if "remote" in location.lower() and FOREIGN_REMOTE.search(location) and not INDIA.search(location):
         return "remote role restricted outside India"
 
     # 5. Target Title / Role Family Check
@@ -87,23 +114,25 @@ def score(job: dict) -> int:
         total += 20
 
     # 3. Node.js / TypeScript / Go (20 pts)
-    if any(x in combined for x in ("node", "nodejs", "node.js", "typescript", "ts", "express", "go", "golang")):
+    if NODE_TS_GO.search(combined):
         total += 20
 
     # 4. React / Next.js (10 pts)
-    if any(x in combined for x in ("react", "react.js", "reactjs", "next.js", "nextjs", "next")):
+    if REACT_NEXT.search(combined):
         total += 10
 
     # 5. MongoDB / PostgreSQL / SQL (10 pts)
-    if any(x in combined for x in ("mongo", "mongodb", "postgres", "postgresql", "sql", "prisma", "redis")):
+    if DB_STACK.search(combined):
         total += 10
 
     # 6. Preferred Location (Noida, Gurugram, Bengaluru, Pune, Lucknow) (10 pts)
     if PREFERRED_LOCATIONS.search(location) or PREFERRED_LOCATIONS.search(title):
         total += 10
 
-    # 7. India Remote (5 pts)
-    if "remote" in location and ("india" in location or "remote" in location):
+    # 7. India Remote (5 pts) — only for a remote role that is explicitly India-based or
+    # has no foreign country attached (hard_reject already drops the clearly-foreign ones,
+    # so anything reaching here with "remote" is India-safe; this just rewards explicit India).
+    if "remote" in location and INDIA.search(location):
         total += 5
 
     return total
