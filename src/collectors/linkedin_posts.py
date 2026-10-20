@@ -37,6 +37,33 @@ SELECTORS = (
     "div[role='listitem']", "div.feed-shared-update-v2", "li.reusable-search__result-container"
 )
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# LinkedIn's scraped card text often glues adjacent UI labels onto the email with no space
+# (e.g. a "DM" button right after the text, producing "...esolglobal.comDM"). EMAIL's TLD
+# group is greedy and has no way to know where the real domain ends, so it swallows the
+# glued text too, producing a broken address Akash would actually try to mail. Trim the
+# match back to the longest known TLD it contains, since real TLDs are short and from a
+# small known set — anything after that is assumed to be glued-on page text, not the domain.
+_KNOWN_TLDS = sorted((
+    "com", "org", "net", "io", "co", "in", "ai", "dev", "app", "edu", "gov",
+    "biz", "info", "me", "us", "uk", "ca", "au",
+), key=len, reverse=True)  # longest first so "com" wins over its own prefix "co"
+
+
+def _clean_email(raw: str) -> str:
+    local, sep, domain = raw.rpartition("@")
+    if not sep:
+        return raw
+    last_dot = domain.rfind(".")
+    if last_dot == -1:
+        return raw
+    suffix = domain[last_dot + 1:].lower()
+    for tld in _KNOWN_TLDS:  # longest first, so "com" is checked before its own prefix "co"
+        if suffix == tld:
+            return raw  # exact TLD already, nothing glued on — leave untouched
+        if suffix.startswith(tld):
+            end = last_dot + 1 + len(tld)
+            return f"{local}@{domain[:end]}"
+    return raw
 URL = re.compile(r"https?://[^\s)]+")
 DM_ONLY = ("dm me", "dm if interested", "message me", "reach out via dm", "send me a dm")
 
@@ -95,7 +122,8 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                         links = [x.rstrip(".,)") for x in URL.findall(text)]
                         apply = next((x for x in links if any(k in x.lower() for k in ("forms.gle", "google.com/forms", "careers", "jobs", "greenhouse", "lever", "ashby"))), "")
                         post_url = _url(card)
-                        email = EMAIL.search(text)
+                        email_match = EMAIL.search(text)
+                        email = _clean_email(email_match.group(0)) if email_match else ""
                         job_link = ""
 
                         view = card.get_by_text("View job", exact=False)
@@ -130,7 +158,7 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                             "linkedin_posts",
                             source_id=unique_id,
                             recruiter_name=recruiter,
-                            recruiter_email=email.group(0) if email else "",
+                            recruiter_email=email,
                             email_source="linkedin_post" if email else "",
                             title=query.title(),
                             description=text[:1500],
