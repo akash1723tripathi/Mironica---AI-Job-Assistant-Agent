@@ -101,14 +101,19 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                         if view.count():
                             job_link = view.first.get_attribute("href") or ""
 
-                        if not (apply or job_link or email or post_url):
+                        # Akash only wants posts with an actual way to act on them — a form/
+                        # careers/ATS link, a "View job" link, or a recruiter email. A post with
+                        # none of those (just the post link itself, no stated contact point) is
+                        # too vague to be worth surfacing, so it's dropped here, not just
+                        # deprioritized — it never becomes a record at all.
+                        if not (apply or job_link or email):
                             continue
 
                         recruiter = card.locator("span[dir='ltr']").first.inner_text().strip() if card.locator("span[dir='ltr']").count() else ""
 
                         # Keep the original post link separate from the apply link — Akash wants
                         # the apply link when one exists, but still wants the post's own link
-                        # preserved (for email-only or post-only cases, and as context either way).
+                        # preserved as context (and as the fallback shown for an email-only post).
                         records.append(new_job(
                             "linkedin_posts",
                             source_id=post_url or apply or job_link,

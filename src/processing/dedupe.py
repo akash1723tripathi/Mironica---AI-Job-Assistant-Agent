@@ -26,6 +26,16 @@ def get_source_priority(source: str) -> int:
     return SOURCE_PRIORITY.get(str(source or "").lower(), 10)
 
 
+# Sources whose "title" is not a real job title (e.g. linkedin_posts sets title to the
+# search-query text itself, like "Hiring Backend Engineer", and leaves company blank since
+# a feed post has no structured company field). For these, every record under the same
+# search query would share the exact same (company, title) pair and wrongly collide in the
+# evidence-based dedup below, even though they're genuinely different posts from different
+# recruiters. Their post_url is already a reliable unique key (see job_key), so they don't
+# need the company+title fallback at all.
+_UNRELIABLE_EVIDENCE_SOURCES = {"linkedin_posts"}
+
+
 def _token(value: object) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
@@ -67,7 +77,8 @@ def dedupe(jobs: list[dict]) -> list[dict]:
     for job in sorted_jobs:
         key = job_key(job)
         url = clean_url(job.get("url"))
-        company, title = duplicate_evidence(job)
+        reliable_evidence = str(job.get("source", "")).lower() not in _UNRELIABLE_EVIDENCE_SOURCES
+        company, title = duplicate_evidence(job) if reliable_evidence else ("", "")
 
         if key in seen_keys:
             continue
@@ -82,7 +93,7 @@ def dedupe(jobs: list[dict]) -> list[dict]:
             seen_urls.add(url)
         if company and title:
             seen_evidence.add((company, title))
-            
+
         unique.append(job)
 
     return unique

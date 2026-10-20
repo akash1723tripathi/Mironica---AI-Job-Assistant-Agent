@@ -285,32 +285,60 @@ def main() -> int:
     # Filter out previously sent jobs
     fresh = filter_unsent(unique, STATE)
 
-    # Enrich with email / recruiter discovery & sort by score
-    final_jobs = sorted(discover(fresh), key=lambda job: int(job.get("score", 0)), reverse=True)[:15]
+    # Enrich with email / recruiter discovery (only touches jobs with a url and no email yet,
+    # so it's safe to run once on the combined list before splitting).
+    enriched = discover(fresh)
+
+    # Two separate digest sections, not one merged top-N by score. LinkedIn feed posts have
+    # no location field and generally score lower than a structured ATS/job-board listing, so
+    # a single merged ranking buries them under direct-apply jobs even when they're exactly
+    # what Akash asked for. Each section is ranked and capped independently instead.
+    direct_apply = sorted(
+        (j for j in enriched if j.get("source") != "linkedin_posts"),
+        key=lambda job: int(job.get("score", 0)), reverse=True
+    )[:15]
+    recruiter_posts = sorted(
+        (j for j in enriched if j.get("source") == "linkedin_posts"),
+        key=lambda job: int(job.get("score", 0)), reverse=True
+    )[:15]
+    final_jobs = direct_apply + recruiter_posts
     report["final_count"] = len(final_jobs)
+    report["direct_apply_count"] = len(direct_apply)
+    report["recruiter_posts_count"] = len(recruiter_posts)
 
     # Save reports
     run_report_text = json.dumps(report, indent=2, ensure_ascii=False)
-    final_jobs_text = json.dumps(final_jobs, indent=2, ensure_ascii=False)
+    final_jobs_text = json.dumps(
+        {"direct_apply": direct_apply, "recruiter_posts": recruiter_posts},
+        indent=2, ensure_ascii=False
+    )
 
     (PROCESSED / "final_jobs.json").write_text(final_jobs_text, encoding="utf-8")
     (REPORTS / "run_report.json").write_text(run_report_text, encoding="utf-8")
 
     quality_md = generate_quality_report(normalized, unique, evaluated, final_jobs, report)
 
-    logger.info(f"Pipeline executed successfully. Collected {len(normalized)} raw jobs -> {len(final_jobs)} qualified jobs.")
+    logger.info(
+        f"Pipeline executed successfully. Collected {len(normalized)} raw jobs -> "
+        f"{len(direct_apply)} direct-apply + {len(recruiter_posts)} recruiter posts."
+    )
     print("\n" + quality_md)
 
     if args.dry_run:
         print("\n--- DRY RUN COMPLETE ---")
         print("Telegram delivery and state updates skipped.")
-        print(f"Top {len(final_jobs)} Qualified Jobs:")
-        for j in final_jobs:
+        print(f"\nDirect Apply ({len(direct_apply)}):")
+        for j in direct_apply:
             print(f"- [{j.get('score')}%] {j.get('title')} at {j.get('company')} ({j.get('location')}) -> {j.get('url')}")
+        print(f"\nRecruiter / Hiring Posts ({len(recruiter_posts)}):")
+        for j in recruiter_posts:
+            contact = j.get("contact_type", "")
+            via = j.get("url") or j.get("recruiter_email") or j.get("post_url")
+            print(f"- [{j.get('score')}%] {j.get('title')} [{contact}] -> {via}")
         return 0
 
-    if final_jobs:
-        sent = send_digest(final_jobs, limit=10)
+    if direct_apply or recruiter_posts:
+        sent = send_digest(direct_apply, recruiter_posts, limit=10)
         mark_sent(sent, STATE)
         logger.info(f"Telegram delivered {len(sent)} jobs; state updated.")
     else:
