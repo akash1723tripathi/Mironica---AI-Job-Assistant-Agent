@@ -23,9 +23,13 @@ def filter_unsent(jobs: list[dict], path: Path) -> list[dict]:
     for job in jobs:
         key = job.get("_key") or job_key(job)
         job["_key"] = key
-        # URL comparison supports state written before URL query normalization.
-        legacy_match = any(
-            item.get("source") == job.get("source") and item.get("url") == job.get("url")
+        # URL comparison supports state written before URL query normalization. Only a
+        # real, non-empty URL counts: an email-only post has url="" by design, and
+        # matching on "" == "" would treat every past empty-url post of that source as a
+        # match for every future one, blocking distinct posts that never had a URL at all.
+        job_url = job.get("url") or ""
+        legacy_match = bool(job_url) and any(
+            item.get("source") == job.get("source") and item.get("url") == job_url
             for item in sent.values() if isinstance(item, dict)
         )
         if key not in sent and not legacy_match:

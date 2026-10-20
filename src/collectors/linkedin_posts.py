@@ -9,6 +9,7 @@ import sys
 import re
 import time
 import argparse
+import hashlib
 import logging
 from pathlib import Path
 from urllib.parse import quote
@@ -114,9 +115,20 @@ def collect(max_per_query: int = 15, max_queries: int = 10) -> list[dict]:
                         # Keep the original post link separate from the apply link — Akash wants
                         # the apply link when one exists, but still wants the post's own link
                         # preserved as context (and as the fallback shown for an email-only post).
+                        #
+                        # A plain feed post often has NO extractable post_url (LinkedIn's DOM
+                        # doesn't always expose a stable permalink) and no apply/job_link either
+                        # (it's an email-only post). Falling back to "" there means every such
+                        # post shares one empty source_id, which collapses them all into a single
+                        # dedupe/state key (see dedupe.job_key's company+title+location fallback)
+                        # — once ANY one post under a given search title is ever marked "sent",
+                        # every future distinct post with that same generic title gets silently
+                        # blocked forever. A content hash keeps every post's identity unique even
+                        # with no links at all.
+                        unique_id = post_url or apply or job_link or ("content:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:20])
                         records.append(new_job(
                             "linkedin_posts",
-                            source_id=post_url or apply or job_link,
+                            source_id=unique_id,
                             recruiter_name=recruiter,
                             recruiter_email=email.group(0) if email else "",
                             email_source="linkedin_post" if email else "",
