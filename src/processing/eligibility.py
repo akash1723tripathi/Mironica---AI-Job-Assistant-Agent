@@ -28,33 +28,54 @@ JAVA_PRIMARY_ROLE = re.compile(
     r"^\s*(java\s+(engineer|developer|architect|lead|programmer)|(engineer|developer|programmer)\s*[-:–]\s*java)\b",
     re.I
 )
-# Broad, explicit non-India country/region names, region labels, and major foreign tech-hub
-# cities as seen in free-text location fields — "Remote - Poland", "Home based - Worldwide",
-# "Toronto, Canada", or just "San Francisco, New York City" with no country at all. Word-
-# boundaried so "US" doesn't match inside unrelated words, but still catches bare "US"/"UK".
+# Every real dry-run has surfaced ANOTHER foreign city this list didn't have yet (Poland,
+# then Toronto/Mexico City/Prague, then Palo Alto/Denver/Washington D.C./Malmö) — blacklisting
+# foreign places is a losing, unbounded game: there is always one more city. The location
+# check below (see hard_reject) is whitelist-based instead — pass only if the location is
+# explicitly India, or is genuinely ambiguous (no location info at all). FOREIGN_REMOTE is
+# kept only as a courtesy for callers/tests that want a quick "does this look foreign" signal;
+# it is NOT used to decide the hard_reject outcome anymore.
 FOREIGN_REMOTE = re.compile(
     r"\b("
     r"usa|u\.s\.a\.?|us|u\.s\.?|united states|canada|"
     r"europe|european union|eu|uk|u\.k\.?|united kingdom|great britain|"
-    r"ireland|germany|france|spain|portugal|italy|netherlands|belgium|"
-    r"poland|romania|ukraine|switzerland|sweden|norway|denmark|finland|austria|"
+    r"ireland|germany|france|spain|portugal|italy|netherlands|belgium|sweden|"
+    r"poland|romania|ukraine|switzerland|norway|denmark|finland|austria|"
     r"greece|hungary|czech republic|czechia|"
     r"singapore|australia|new zealand|japan|china|hong kong|south korea|korea|"
     r"philippines|indonesia|malaysia|thailand|vietnam|"
     r"mexico|brazil|argentina|chile|colombia|"
     r"south africa|nigeria|egypt|kenya|"
     r"uae|united arab emirates|dubai|saudi arabia|qatar|israel|"
-    # Region/coverage labels companies use instead of a country name
     r"worldwide|americas|emea|apac|home\s*based|"
-    # Major non-India tech-hub cities that often appear with no country suffix at all
     r"san francisco|new york( city)?|seattle|austin|boston|chicago|los angeles|"
     r"toronto|vancouver|london|berlin|dublin|amsterdam|paris|sydney|melbourne|"
-    r"tokyo|tel aviv|prague"
+    r"tokyo|tel aviv|prague|palo alto|denver|malm[oö]|washington"
     r")\b",
     re.I
 )
+# Major India metros + tier-2 tech hubs — used as the actual whitelist signal. A location
+# string not matching anything here (and not ambiguous — see AMBIGUOUS_LOCATION) is treated
+# as foreign, regardless of which specific foreign place it names.
 INDIA = re.compile(
-    r"\b(india|noida|greater noida|gurugram|gurgaon|bengaluru|bangalore|pune|lucknow|hyderabad|mumbai|delhi|chennai|kolkata|kanpur)\b",
+    r"\b("
+    r"india|bharat|"
+    r"noida|greater noida|gurugram|gurgaon|new delhi|delhi|ncr|faridabad|ghaziabad|"
+    r"bengaluru|bangalore|hyderabad|chennai|mumbai|navi mumbai|pune|kolkata|"
+    r"lucknow|kanpur|ahmedabad|surat|vadodara|baroda|jaipur|indore|bhopal|nagpur|"
+    r"chandigarh|mohali|ludhiana|amritsar|jodhpur|udaipur|dehradun|"
+    r"kochi|cochin|coimbatore|thiruvananthapuram|trivandrum|mysuru|mysore|"
+    r"visakhapatnam|vizag|vijayawada|bhubaneswar|guwahati|patna|ranchi|raipur|"
+    r"nashik|gandhinagar|meerut|agra|varanasi"
+    r")\b",
+    re.I
+)
+# Location text that genuinely tells us nothing either way — bare "Remote", "Work From Home",
+# "Anywhere", "Global", "Flexible", or simply empty. These get the benefit of the doubt and
+# pass, same as before. Anything with MORE text than this (a real city/country name of any
+# kind) must match INDIA above or it's rejected as foreign.
+AMBIGUOUS_LOCATION = re.compile(
+    r"^\s*(remote(\s*-?\s*(ok|only|first|friendly))?|work\s*from\s*home|wfh|anywhere|global|flexible|hybrid|on[ -]?site|in[ -]?office)?\s*$",
     re.I
 )
 PREFERRED_LOCATIONS = re.compile(
@@ -92,12 +113,14 @@ def hard_reject(job: dict) -> str:
     if JAVA_PRIMARY_ROLE.search(title):
         return "primary java role"
 
-    # 4. Foreign Location Restriction Check (remote AND onsite/hybrid)
-    # Only the location string decides this — a foreign city/company name mentioned in the
-    # description (e.g. "our Berlin office") must not falsely reject an India-based role.
-    # Not gated on the word "remote": a plain onsite foreign posting ("Toronto, Canada",
-    # "Mexico City, Mexico") needs rejecting just as much as a foreign remote one.
-    if FOREIGN_REMOTE.search(location) and not INDIA.search(location):
+    # 4. Location Restriction Check — whitelist, not blacklist (see note above INDIA/
+    # AMBIGUOUS_LOCATION). Pass if the location explicitly says India, or is genuinely
+    # ambiguous (blank, bare "Remote", "Hybrid", "In-Office" with no city/country at all —
+    # we truly can't tell for these, so they get the benefit of the doubt). Anything else —
+    # any named foreign city, state, or country, remote or onsite — is rejected. Only the
+    # location string decides this; a foreign city mentioned in the description (e.g. "our
+    # Berlin office") must not falsely reject an India-based role.
+    if location and not INDIA.search(location) and not AMBIGUOUS_LOCATION.match(location):
         return "location outside India"
 
     # 5. Target Title / Role Family Check
