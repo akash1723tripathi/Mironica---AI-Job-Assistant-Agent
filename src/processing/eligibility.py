@@ -28,9 +28,10 @@ JAVA_PRIMARY_ROLE = re.compile(
     r"^\s*(java\s+(engineer|developer|architect|lead|programmer)|(engineer|developer|programmer)\s*[-:–]\s*java)\b",
     re.I
 )
-# Broad, explicit non-India country/region names and common abbreviations as seen in
-# "Remote - <Country>" style location strings. Word-boundaried so "US" doesn't match
-# inside unrelated words, but still catches bare "US"/"UK" tokens.
+# Broad, explicit non-India country/region names, region labels, and major foreign tech-hub
+# cities as seen in free-text location fields — "Remote - Poland", "Home based - Worldwide",
+# "Toronto, Canada", or just "San Francisco, New York City" with no country at all. Word-
+# boundaried so "US" doesn't match inside unrelated words, but still catches bare "US"/"UK".
 FOREIGN_REMOTE = re.compile(
     r"\b("
     r"usa|u\.s\.a\.?|us|u\.s\.?|united states|canada|"
@@ -42,7 +43,13 @@ FOREIGN_REMOTE = re.compile(
     r"philippines|indonesia|malaysia|thailand|vietnam|"
     r"mexico|brazil|argentina|chile|colombia|"
     r"south africa|nigeria|egypt|kenya|"
-    r"uae|united arab emirates|dubai|saudi arabia|qatar|israel"
+    r"uae|united arab emirates|dubai|saudi arabia|qatar|israel|"
+    # Region/coverage labels companies use instead of a country name
+    r"worldwide|americas|emea|apac|home\s*based|"
+    # Major non-India tech-hub cities that often appear with no country suffix at all
+    r"san francisco|new york( city)?|seattle|austin|boston|chicago|los angeles|"
+    r"toronto|vancouver|london|berlin|dublin|amsterdam|paris|sydney|melbourne|"
+    r"tokyo|tel aviv|prague"
     r")\b",
     re.I
 )
@@ -85,11 +92,13 @@ def hard_reject(job: dict) -> str:
     if JAVA_PRIMARY_ROLE.search(title):
         return "primary java role"
 
-    # 4. Foreign Remote Restriction Check
+    # 4. Foreign Location Restriction Check (remote AND onsite/hybrid)
     # Only the location string decides this — a foreign city/company name mentioned in the
-    # description (e.g. "our Berlin office") must not falsely reject an India-based remote role.
-    if "remote" in location.lower() and FOREIGN_REMOTE.search(location) and not INDIA.search(location):
-        return "remote role restricted outside India"
+    # description (e.g. "our Berlin office") must not falsely reject an India-based role.
+    # Not gated on the word "remote": a plain onsite foreign posting ("Toronto, Canada",
+    # "Mexico City, Mexico") needs rejecting just as much as a foreign remote one.
+    if FOREIGN_REMOTE.search(location) and not INDIA.search(location):
+        return "location outside India"
 
     # 5. Target Title / Role Family Check
     if not TARGET_TITLE.search(title) and not TARGET_TITLE.search(combined[:300]):

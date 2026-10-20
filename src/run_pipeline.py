@@ -122,8 +122,17 @@ def generate_quality_report(
 ) -> str:
     total_raw = len(raw_jobs)
     total_unique = len(unique_jobs)
-    duplicate_rate = round(((total_raw - total_unique) / total_raw * 100), 1) if total_raw > 0 else 0.0
-    
+    # "Duplicate rate" must compare dedupe's own input/output (eligible jobs before and
+    # after dedupe), not raw-vs-final — raw_jobs includes everything eligibility.py has not
+    # yet filtered, so raw-vs-unique conflates "filtered out as ineligible" with "removed as
+    # a duplicate" and wildly overstates duplication (e.g. reporting ~99% when eligibility
+    # filtering, not dedupe, did almost all of the reduction).
+    after_hard_filter = run_report.get("after_hard_filter", total_unique)
+    duplicate_rate = (
+        round(((after_hard_filter - total_unique) / after_hard_filter * 100), 1)
+        if after_hard_filter > 0 else 0.0
+    )
+
     scores = [j["score"] for j in qualified_jobs]
     avg_score = round(sum(scores) / len(scores), 1) if scores else 0.0
 
@@ -148,8 +157,9 @@ def generate_quality_report(
         "| Metric | Value | Target Threshold |",
         "|---|---|---|",
         f"| **Raw Jobs Collected** | **{total_raw}** | 200+ |",
+        f"| **Eligible After Filtering** | **{after_hard_filter}** | — |",
         f"| **Unique Jobs (Post-Dedupe)** | **{total_unique}** | — |",
-        f"| **Duplicate Rate** | **{duplicate_rate}%** | < 50% |",
+        f"| **Duplicate Rate (within eligible jobs)** | **{duplicate_rate}%** | < 50% |",
         f"| **Qualified Jobs (Score >= 50)** | **{len(qualified_jobs)}** | 10+ |",
         f"| **Average Match Score** | **{avg_score}%** | >= 50% |",
         f"| **Entry-Level Opportunities** | **{entry_jobs}** | — |",
